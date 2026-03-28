@@ -1,0 +1,6 @@
+running web dengan : 
+pnpm dev
+
+clear cache di web console : 
+localStorage.clear();
+sessionStorage.clear();
