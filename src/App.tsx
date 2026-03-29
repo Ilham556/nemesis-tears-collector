@@ -55,8 +55,11 @@ export default function App() {
   const [score, setScore] = useState(0);
   const [globalTears, setGlobalTears] = useState(0);
   const [tears, setTears] = useState<{ id: number; x: number; y: number }[]>([]);
+  const [formData, setFormData] = useState({ fname: "", lname: "", email: "" });
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const tearIdRef = useRef(0);
   const userSessionIdRef = useRef<string>("");
+  const cryAudioRef = useRef<HTMLAudioElement>(null);
 
   // Check for completion and fetch global tears on mount
   useEffect(() => {
@@ -161,6 +164,14 @@ export default function App() {
       const newScore = score + 1;
       setScore(newScore);
 
+      // Play cry sound when button is clicked
+      if (cryAudioRef.current) {
+        cryAudioRef.current.currentTime = 0;
+        cryAudioRef.current.play().catch(err => {
+          console.error("Error playing cry sound:", err);
+        });
+      }
+
       // Save point to Supabase table
       await savePointToSupabase(selectedNemesis.id, newScore);
 
@@ -187,10 +198,54 @@ export default function App() {
     }
   };
 
+  const handleFormChange = (e: any) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleFormSubmit = async (e: any) => {
+    e.preventDefault();
+    setIsSubmittingForm(true);
+
+    try {
+      // Mailchimp form data
+      const params = new URLSearchParams();
+      params.append("u", "22132865b5e0312a9b2fa2046");
+      params.append("id", "be1ef037cd");
+      params.append("FNAME", formData.fname);
+      params.append("LNAME", formData.lname);
+      params.append("EMAIL", formData.email);
+
+      // Submit to Mailchimp
+      const response = await fetch(
+        "https://us1.list-manage.com/subscribe/post?u=22132865b5e0312a9b2fa2046&id=be1ef037cd",
+        {
+          method: "POST",
+          body: params,
+          mode: "no-cors", // Required for Mailchimp
+        }
+      );
+
+      // Reset form
+      setFormData({ fname: "", lname: "", email: "" });
+      alert("Thanks for subscribing! Check your email to confirm.");
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      alert("There was an error. Please try again.");
+    } finally {
+      setIsSubmittingForm(false);
+    }
+  };
+
   const waterHeight = (stage === "success" || stage === "signup" || stage === "already_completed") ? 100 : (score / TARGET_SCORE) * 100;
 
   return (
-    <div className="min-h-screen bg-[#F5F5F0] font-sans text-[#141414] overflow-hidden relative">
+    <>
+      <audio ref={cryAudioRef} src="/sounds/cry.mp3" />
+      <div className="min-h-screen bg-[#F5F5F0] font-sans text-[#141414] overflow-hidden relative">
       {/* Water Background Effect */}
       <AnimatePresence>
         {stage !== "selection" && stage !== "transition" && (
@@ -511,11 +566,15 @@ export default function App() {
 
             <h1 className="text-5xl md:text-7xl font-black mb-12">Sign up</h1>
 
-            <form className="w-full max-w-md flex flex-col gap-6" onSubmit={(e) => e.preventDefault()}>
+            <form className="w-full max-w-md flex flex-col gap-6" onSubmit={handleFormSubmit}>
               <div className="flex flex-col gap-2">
                 <label className="font-bold text-sm uppercase tracking-widest opacity-80">Name</label>
                 <input
                   type="text"
+                  name="fname"
+                  value={formData.fname}
+                  onChange={handleFormChange}
+                  required
                   className="bg-white/10 border-2 border-white/30 rounded-lg p-4 focus:outline-none focus:border-white transition-colors"
                   placeholder="Your name"
                 />
@@ -524,6 +583,10 @@ export default function App() {
                 <label className="font-bold text-sm uppercase tracking-widest opacity-80">Surname</label>
                 <input
                   type="text"
+                  name="lname"
+                  value={formData.lname}
+                  onChange={handleFormChange}
+                  required
                   className="bg-white/10 border-2 border-white/30 rounded-lg p-4 focus:outline-none focus:border-white transition-colors"
                   placeholder="Your surname"
                 />
@@ -532,6 +595,10 @@ export default function App() {
                 <label className="font-bold text-sm uppercase tracking-widest opacity-80">Email</label>
                 <input
                   type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleFormChange}
+                  required
                   className="bg-white/10 border-2 border-white/30 rounded-lg p-4 focus:outline-none focus:border-white transition-colors"
                   placeholder="your@email.com"
                 />
@@ -546,9 +613,10 @@ export default function App() {
 
               <button
                 type="submit"
-                className="bg-[#FF6321] hover:bg-white hover:text-[#FF6321] text-white text-2xl font-black py-4 rounded-full shadow-xl transition-all mt-4 uppercase"
+                disabled={isSubmittingForm}
+                className="bg-[#FF6321] hover:bg-white hover:text-[#FF6321] disabled:opacity-50 disabled:cursor-not-allowed text-white text-2xl font-black py-4 rounded-full shadow-xl transition-all mt-4 uppercase"
               >
-                Sign up
+                {isSubmittingForm ? "Submitting..." : "Sign up"}
               </button>
 
               <p className="text-xs opacity-60 text-center mt-4">
@@ -578,6 +646,7 @@ export default function App() {
           </motion.div>
         ))}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
